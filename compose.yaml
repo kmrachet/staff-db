@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   frontend:
     build:
@@ -14,7 +12,9 @@ services:
       - app_network
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: flask_backend
     expose:
       - "5000"
