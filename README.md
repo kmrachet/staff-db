@@ -1,5 +1,144 @@
 # staff-db
 
+## DB・テーブル構成
+
+```mermaid
+erDiagram
+    %% --------------------
+    %% 1. 職員の基本情報
+    %% --------------------
+    Users {
+        VARCHAR user_id PK "管理ID (PK)"
+        VARCHAR name "氏名"
+        DATE birthday "生年月日"
+        DATE hire_date "入職日"
+        VARCHAR personal_extension_number "個人の内線"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    User_Statuses {
+        INTEGER status_id PK "ステータスID (PK)"
+        VARCHAR status_name "ステータス名"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    User_Status_History {
+        INTEGER status_history_id PK "履歴ID (PK)"
+        VARCHAR user_id FK "管理ID (FK)"
+        INTEGER status_id FK "ステータスID (FK)"
+        DATE start_date "開始日"
+        DATE end_date "終了日"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    %% --------------------
+    %% 2. 各種ID管理
+    %% --------------------
+    Employee_Number_History {
+        INTEGER employee_number_history_id PK "履歴ID (PK)"
+        VARCHAR user_id FK "管理ID (FK)"
+        VARCHAR employee_number "職員番号"
+        INTEGER position_id FK "職位ID (FK)"
+        DATE start_date "開始日"
+        DATE end_date "終了日"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    Positions {
+        INTEGER position_id PK "職位ID (PK)"
+        VARCHAR position_name "職位名"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    D_Number_History {
+        INTEGER d_number_history_id PK "履歴ID (PK)"
+        VARCHAR user_id FK "管理ID (FK)"
+        VARCHAR d_number "D番号"
+        DATE start_date "開始日"
+        DATE end_date "終了日"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    System_IDs {
+        INTEGER system_id_record_id PK "レコードID (PK)"
+        VARCHAR user_id FK "管理ID (FK)"
+        VARCHAR system_id "情報システムID"
+        BOOLEAN is_active "有効フラグ"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    Cards {
+        VARCHAR card_uid PK "カードUID (PK)"
+        VARCHAR user_id FK "管理ID (FK)"
+        VARCHAR card_management_id "カード管理用ID"
+        BOOLEAN is_active "有効フラグ"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    %% --------------------
+    %% 3. 部署・所属管理
+    %% --------------------
+    Departments {
+        INTEGER department_id PK "部署ID (PK)"
+        VARCHAR department_extension_number "部署の内線"
+        DATE create_date "設立日"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    Department_Name_History {
+        INTEGER dept_name_history_id PK "履歴ID (PK)"
+        INTEGER department_id FK "部署ID (FK)"
+        VARCHAR department_name "部署名"
+        DATE start_date "開始日"
+        DATE end_date "終了日"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+   %% --- 中間テーブル ---
+    User_Departments {
+        VARCHAR user_id PK, FK "管理ID (PK, FK)"
+        INTEGER department_id PK, FK "部署ID (PK, FK)"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    %% --------------------
+    %% 4. システム連携
+    %% --------------------
+    External_Systems {
+        INTEGER system_id PK "システムID (PK)"
+        VARCHAR system_name "外部システム名"
+        DATE start_date "開始日"
+        DATE end_date "終了日"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    External_System_Exports {
+        INTEGER export_setting_id PK "設定ID (PK)"
+        INTEGER system_id FK "システムID (FK)"
+        VARCHAR table_name "対象テーブル名"
+        VARCHAR column_name "対象カラム名"
+        TIMESTAMP updated_at "最終更新日時"
+    }
+
+    %% --- 関係性の定義 ---
+    Users ||--o{ User_Status_History : "のステータス履歴"
+    User_Statuses ||--o{ User_Status_History : "が割り当てられる"
+
+    Users ||--o{ Employee_Number_History : "が持つ"
+    Positions ||--o{ Employee_Number_History : "が割り当てられる"
+
+    Users ||--o{ D_Number_History : "が持つ"
+    Users ||--o{ System_IDs : "が持つ"
+    Users ||--o{ Cards : "の所持カード"
+
+    Users ||--o{ User_Departments : "の所属"
+    Departments ||--o{ User_Departments : "の所属者"
+    Departments ||--o{ Department_Name_History : "の名称履歴"
+
+    External_Systems ||--o{ External_System_Exports : "の連携設定"
+```
+
+
 ## ディレクトリ構成
 
 ```
