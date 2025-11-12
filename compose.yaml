@@ -6,6 +6,8 @@ services:
     container_name: react_frontend
     ports:
       - "80:80"    # 本番はNginxで静的配信
+    environment:
+      - TZ=Asia/Tokyo
     depends_on:
       - backend
     networks:
@@ -30,6 +32,7 @@ services:
       - MYSQL_USER=root
       - MYSQL_PASSWORD=example
       - MYSQL_DATABASE=app_db
+      - TZ=Asia/Tokyo
     networks:
       - app_network
 
@@ -42,6 +45,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: example
       MYSQL_DATABASE: app_db
+      TZ: Asia/Tokyo
     volumes:
       - db_data:/var/lib/mysql
     networks:
