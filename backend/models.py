@@ -18,41 +18,23 @@ class User(TimestampMixin, db.Model):
     name = Column(VARCHAR(255), comment="氏名")
     birthday = Column(DATE, comment="生年月日")
     hire_date = Column(DATE, comment="入職日")
-    personal_extension_number = Column(VARCHAR(50), comment="個人の内線")
+    # personal_extension_number はER図から削除
 
     # リレーションシップ
-    status_history = relationship('UserStatusHistory', back_populates='user')
+    # status_history はER図から削除
     employee_number_history = relationship('EmployeeNumberHistory', back_populates='user')
-    d_number_history = relationship('DNumberHistory', back_populates='user')
-    system_ids = relationship('SystemID', back_populates='user')
-    cards = relationship('Card', back_populates='user')
+    d_numbers = relationship('DNumbers', back_populates='user') # DNumberHistory から DNumbers に変更
+    system_ids = relationship('System_IDs', back_populates='user') # SystemID から System_IDs に変更
+    cards = relationship('Cards', back_populates='user') # Card から Cards に変更
     departments = relationship('UserDepartment', back_populates='user')
 
-class UserStatus(TimestampMixin, db.Model):
-    __tablename__ = 'User_Statuses'
-    status_id = Column(Integer, primary_key=True, comment="ステータスID (PK)")
-    status_name = Column(VARCHAR(100), comment="ステータス名")
-
-    # リレーションシップ
-    user_history = relationship('UserStatusHistory', back_populates='status')
-
-class UserStatusHistory(TimestampMixin, db.Model):
-    __tablename__ = 'User_Status_History'
-    status_history_id = Column(Integer, primary_key=True, comment="履歴ID (PK)")
-    user_id = Column(VARCHAR(255), ForeignKey('Users.user_id'), comment="管理ID (FK)")
-    status_id = Column(Integer, ForeignKey('User_Statuses.status_id'), comment="ステータスID (FK)")
-    start_date = Column(DATE, comment="開始日")
-    end_date = Column(DATE, nullable=True, comment="終了日")
-
-    # リレーションシップ
-    user = relationship('User', back_populates='status_history')
-    status = relationship('UserStatus', back_populates='user_history')
+# UserStatus と UserStatusHistory はER図から削除
 
 # --------------------
 # 2. 各種ID管理
 # --------------------
 
-class Position(TimestampMixin, db.Model):
+class Positions(TimestampMixin, db.Model): # Position -> Positions
     __tablename__ = 'Positions'
     position_id = Column(Integer, primary_key=True, comment="職位ID (PK)")
     position_name = Column(VARCHAR(100), comment="職位名")
@@ -71,20 +53,19 @@ class EmployeeNumberHistory(TimestampMixin, db.Model):
 
     # リレーションシップ
     user = relationship('User', back_populates='employee_number_history')
-    position = relationship('Position', back_populates='employee_number_history')
+    position = relationship('Positions', back_populates='employee_number_history') # Position -> Positions
 
-class DNumberHistory(TimestampMixin, db.Model):
-    __tablename__ = 'D_Number_History'
+class DNumbers(TimestampMixin, db.Model): # DNumberHistory -> DNumbers
+    __tablename__ = 'D_Numbers'
     d_number_history_id = Column(Integer, primary_key=True, comment="履歴ID (PK)")
     user_id = Column(VARCHAR(255), ForeignKey('Users.user_id'), comment="管理ID (FK)")
     d_number = Column(VARCHAR(100), comment="D番号")
-    start_date = Column(DATE, comment="開始日")
-    end_date = Column(DATE, nullable=True, comment="終了日")
+    is_active = Column(BOOLEAN, default=True, comment="有効フラグ") # start_date, end_date から変更
     
     # リレーションシップ
-    user = relationship('User', back_populates='d_number_history')
+    user = relationship('User', back_populates='d_numbers') # d_number_history -> d_numbers
 
-class SystemID(TimestampMixin, db.Model):
+class System_IDs(TimestampMixin, db.Model): # SystemID -> System_IDs
     __tablename__ = 'System_IDs'
     system_id_record_id = Column(Integer, primary_key=True, comment="レコードID (PK)")
     user_id = Column(VARCHAR(255), ForeignKey('Users.user_id'), comment="管理ID (FK)")
@@ -94,7 +75,7 @@ class SystemID(TimestampMixin, db.Model):
     # リレーションシップ
     user = relationship('User', back_populates='system_ids')
 
-class Card(TimestampMixin, db.Model):
+class Cards(TimestampMixin, db.Model): # Card -> Cards
     __tablename__ = 'Cards'
     card_uid = Column(VARCHAR(255), primary_key=True, comment="カードUID (PK)")
     user_id = Column(VARCHAR(255), ForeignKey('Users.user_id'), comment="管理ID (FK)")
@@ -108,26 +89,18 @@ class Card(TimestampMixin, db.Model):
 # 3. 部署・所属管理
 # --------------------
 
-class Department(TimestampMixin, db.Model):
+class Departments(TimestampMixin, db.Model): # Department -> Departments
     __tablename__ = 'Departments'
     department_id = Column(Integer, primary_key=True, comment="部署ID (PK)")
     department_extension_number = Column(VARCHAR(50), comment="部署の内線")
-    create_date = Column(DATE, comment="設立日")
+    start_date = Column(DATE, comment="開始日") # create_date から変更
+    end_date = Column(DATE, nullable=True, comment="終了日") # 新規追加
     
     # リレーションシップ
-    name_history = relationship('DepartmentNameHistory', back_populates='department')
+    # name_history はER図から削除
     users = relationship('UserDepartment', back_populates='department')
 
-class DepartmentNameHistory(TimestampMixin, db.Model):
-    __tablename__ = 'Department_Name_History'
-    dept_name_history_id = Column(Integer, primary_key=True, comment="履歴ID (PK)")
-    department_id = Column(Integer, ForeignKey('Departments.department_id'), comment="部署ID (FK)")
-    department_name = Column(VARCHAR(255), comment="部署名")
-    start_date = Column(DATE, comment="開始日")
-    end_date = Column(DATE, nullable=True, comment="終了日")
-    
-    # リレーションシップ
-    department = relationship('Department', back_populates='name_history')
+# DepartmentNameHistory はER図から削除
 
 # 中間テーブル (Users と Departments)
 class UserDepartment(TimestampMixin, db.Model):
@@ -137,13 +110,13 @@ class UserDepartment(TimestampMixin, db.Model):
     
     # リレーショングループ
     user = relationship('User', back_populates='departments')
-    department = relationship('Department', back_populates='users')
+    department = relationship('Departments', back_populates='users') # Department -> Departments
 
 # --------------------
 # 4. システム連携
 # --------------------
 
-class ExternalSystem(TimestampMixin, db.Model):
+class External_Systems(TimestampMixin, db.Model): # ExternalSystem -> External_Systems
     __tablename__ = 'External_Systems'
     system_id = Column(Integer, primary_key=True, comment="システムID (PK)")
     system_name = Column(VARCHAR(255), comment="外部システム名")
@@ -151,14 +124,15 @@ class ExternalSystem(TimestampMixin, db.Model):
     end_date = Column(DATE, nullable=True, comment="終了日")
     
     # リレーションシップ
-    export_settings = relationship('ExternalSystemExport', back_populates='system')
+    export_settings = relationship('External_System_Exports', back_populates='system') # ExternalSystemExport -> External_System_Exports
 
-class ExternalSystemExport(TimestampMixin, db.Model):
+class External_System_Exports(TimestampMixin, db.Model): # ExternalSystemExport -> External_System_Exports
     __tablename__ = 'External_System_Exports'
     export_setting_id = Column(Integer, primary_key=True, comment="設定ID (PK)")
     system_id = Column(Integer, ForeignKey('External_Systems.system_id'), comment="システムID (FK)")
     table_name = Column(VARCHAR(255), comment="対象テーブル名")
     column_name = Column(VARCHAR(255), comment="対象カラム名")
+    transform_id = Column(VARCHAR(255), comment="変換先ID") # 新規追加
     
     # リレーションシップ
-    system = relationship('ExternalSystem', back_populates='export_settings')
+    system = relationship('External_Systems', back_populates='export_settings') # ExternalSystem -> External_Systems

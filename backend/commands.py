@@ -1,7 +1,8 @@
 import click
 import pandas as pd
 from .extensions import db
-from .models import Position  # Positionモデルをインポート
+# 変更：インポートするモデルを新しい定義に合わせる
+from .models import Positions, User, EmployeeNumberHistory, DNumbers, Cards 
 import os
 
 # 'app' (Flaskアプリケーションインスタンス) を受け取るようにします
@@ -36,15 +37,15 @@ def register_commands(app):
                 pos_id = row['position_id']
                 pos_name = row['position_name']
 
-                # 既に存在するかDBで確認 (getは主キー検索)
-                existing_pos = Position.query.get(pos_id)
+                # 変更: Position -> Positions
+                existing_pos = Positions.query.get(pos_id)
                 
                 if existing_pos:
                     print(f"スキップ: Position ID {pos_id} ({pos_name}) は既に存在します。")
                     continue
                 
-                # 新規作成
-                new_pos = Position(
+                # 変更: Position -> Positions
+                new_pos = Positions(
                     position_id=pos_id,
                     position_name=pos_name
                 )
@@ -94,7 +95,7 @@ def register_commands(app):
             try:
                 # 1. Usersテーブルへの登録
                 # user_id は '職員番号' を使うか、D番号を使うか、設計に合わせて決定
-                # ここでは例として '職員番号' を user_id とします
+                # ここでは例として '給与番号' を user_id とします
                 user_id = row['給与番号'] # cws_exchange/for_cws.ipynb の '給与番号' を使用
                 
                 # 既に存在するかチェック (職員番号はユニークなはず)
@@ -118,23 +119,26 @@ def register_commands(app):
                     employee_number=row['給与番号'],
                     # '職位ID' は '職位' ('一般' など) から 'Positions' テーブルを引くか、
                     # 'position_code' ('0006') を直接使う
+                    # 変更：コメントを Positions に修正
                     position_id=1, # 仮: 事前に 'Positions' テーブルに '一般' (ID:1) を登録しておく
                     start_date=pd.to_datetime(row['採用日']).date() if pd.notna(row['採用日']) else None
                 )
                 db.session.add(emp_history)
 
-                # 3. DNumberHistory への登録
+                # 3. DNumbers への登録 (変更)
                 if pd.notna(row['職員番号']): # D番号のカラム名が '職員番号' だった場合
-                    d_num_history = DNumberHistory(
+                    # 変更: DNumberHistory -> DNumbers, start_date -> is_active
+                    d_num = DNumbers(
                         user_id=user_id,
                         d_number=row['職員番号'],
-                        start_date=pd.to_datetime(row['採用日']).date() if pd.notna(row['採用日']) else None
+                        is_active=True 
                     )
-                    db.session.add(d_num_history)
+                    db.session.add(d_num)
                 
-                # 4. Cards への登録
+                # 4. Cards への登録 (変更)
                 if pd.notna(row['Felicaカード番号']):
-                    card = Card(
+                    # 変更: Card -> Cards
+                    card = Cards(
                         card_uid=row['Felicaカード番号'],
                         user_id=user_id,
                         is_active=True

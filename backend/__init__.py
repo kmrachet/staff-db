@@ -24,12 +24,7 @@ def create_app(config_name='default'):
     def health():
         return jsonify(status="ok"), 200
 
-    @app.route("/users")
-    def users():
-        # (仮実装)
-        return jsonify(users=["Alice", "Bob"]), 200
-        
-# 5. カスタムCLIコマンドの登録
+    # 5. カスタムCLIコマンドの登録
     # create_app の中でインポートします
     from . import commands 
     commands.register_commands(app)
