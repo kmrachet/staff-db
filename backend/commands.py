@@ -1,9 +1,11 @@
 import click
 import pandas as pd
 from .extensions import db
-from .models import Positions, User, EmployeeNumberHistory, DNumbers, Cards, Departments
+# UserDepartment をインポート対象に追加
+from .models import Positions, User, EmployeeNumberHistory, DNumbers, Cards, Departments, UserDepartment
 import os
 import datetime
+import uuid  # UUID モジュールをインポート
 
 # 'app' (Flaskアプリケーションインスタンス) を受け取るようにします
 def register_commands(app):
@@ -116,92 +118,88 @@ def register_commands(app):
     def import_data(csv_file):
         """
         指定されたCSVファイルから初期データをDBにインポートします。
-        (例: flask import-data cws_exchange/results/nurse_newcomer_20250401.csv)
+        (例: flask import-data nurse_newcomer_modified.csv)
+        ★ user_id は UUID を自動生成します ★
         """
         
-        # cws_exchange/for_cws.ipynb の最終出力CSVのカラム名を確認
-        # このCSVはプロジェクトルートからの相対パスで指定することを想定
         if not os.path.exists(csv_file):
             print(f"エラー: ファイルが見つかりません: {csv_file}")
             return
 
         print(f"{csv_file} からデータを読み込んでいます...")
         try:
-            # for_cws.ipynbの最終出力（Shift_JISかもしれません）に合わせてエンコーディングを指定
-            df = pd.read_csv(csv_file, encoding='utf-8') # もし 'cp932' なら変更
+            # nurse_newcomer_modified.csv はヘッダー付き、UTF-8 と想定
+            # 1列目の名前なしカラムはインデックスとして読み込む
+            df = pd.read_csv(csv_file, encoding='utf-8', index_col=0) 
         except Exception as e:
             print(f"CSV読み込みエラー: {e}")
             return
             
         print(f"{len(df)}件のデータを処理します...")
 
-        # 'cws_exchange/for_cws.ipynb' で定義されているカラム名と
+        # 'nurse_newcomer_modified.csv' のカラム名と
         # 'backend/models.py' のモデルを対応付けます
-        
-        # (例: df のカラム名が '職員番号', '氏名(漢字)姓', '氏名(漢字)名', 'Felicaカード番号', 'D番号' の場合)
         
         for index, row in df.iterrows():
             try:
-                # 1. Usersテーブルへの登録
-                # user_id は '職員番号' を使うか、D番号を使うか、設計に合わせて決定
-                # ここでは例として '給与番号' を user_id とします
-                user_id = row['給与番号'] # cws_exchange/for_cws.ipynb の '給与番号' を使用
+                # --- 重複チェック ---
+                # employee_number をキーに EmployeeNumberHistory を検索
+                emp_num_str = str(row['employee_number'])
+                existing_history = EmployeeNumberHistory.query.filter_by(employee_number=emp_num_str).first()
                 
-                # 既に存在するかチェック (職員番号はユニークなはず)
-                existing_user = User.query.get(user_id)
-                if existing_user:
-                    print(f"スキップ: User {user_id} は既に存在します。")
+                if existing_history:
+                    print(f"スキップ: Employee Number {emp_num_str} ({row['name']}) は既に存在します。")
                     continue
 
+                # --- 新規登録 ---
+                # 1. user_id として UUID を生成
+                user_id = str(uuid.uuid4())
+
+                # 2. Usersテーブルへの登録
                 new_user = User(
-                    user_id=user_id,
-                    name=f"{row['氏名(漢字)姓']} {row['氏名(漢字)名']}",
-                    # '生年月日', '入職日' もCSVにあるなら追加
-                    birthday=pd.to_datetime(row['生年月日']).date() if pd.notna(row['生年月日']) else None,
-                    hire_date=pd.to_datetime(row['採用日']).date() if pd.notna(row['採用日']) else None
+                    user_id=user_id, # 生成したUUIDを使用
+                    name=row['name'],
+                    birthday=pd.to_datetime(row['Birthday']).date() if pd.notna(row['Birthday']) else None,
+                    hire_date=pd.to_datetime(row['hire_date']).date() if pd.notna(row['hire_date']) else None
                 )
                 db.session.add(new_user)
                 
-                # 2. EmployeeNumberHistory への登録 (職員番号の履歴)
+                # 3. EmployeeNumberHistory への登録 (職員番号の履歴)
                 emp_history = EmployeeNumberHistory(
-                    user_id=user_id,
-                    employee_number=row['給与番号'],
-                    # '職位ID' は '職位' ('一般' など) から 'Positions' テーブルを引くか、
-                    # 'position_code' ('0006') を直接使う
-                    # 変更：コメントを Positions に修正
-                    position_id=1, # 仮: 事前に 'Positions' テーブルに '一般' (ID:1) を登録しておく
-                    start_date=pd.to_datetime(row['採用日']).date() if pd.notna(row['採用日']) else None
+                    user_id=user_id, # 生成したUUIDを使用
+                    employee_number=emp_num_str, # CSVの職員番号
+                    # CSVから 'position_id' を使用
+                    position_id=int(row['position_id']), 
+                    start_date=pd.to_datetime(row['hire_date']).date() if pd.notna(row['hire_date']) else None
                 )
                 db.session.add(emp_history)
 
-                # 3. DNumbers への登録 (変更)
-                if pd.notna(row['職員番号']): # D番号のカラム名が '職員番号' だった場合
-                    # 変更: DNumberHistory -> DNumbers, start_date -> is_active
+                # 4. DNumbers への登録
+                if pd.notna(row['d_number']): 
                     d_num = DNumbers(
-                        user_id=user_id,
-                        d_number=row['職員番号'],
+                        user_id=user_id, # 生成したUUIDを使用
+                        d_number=str(row['d_number']),
                         is_active=True 
                     )
                     db.session.add(d_num)
                 
-                # 4. Cards への登録 (変更)
-                if pd.notna(row['Felicaカード番号']):
-                    # 変更: Card -> Cards
-                    card = Cards(
-                        card_uid=row['Felicaカード番号'],
-                        user_id=user_id,
-                        is_active=True
+                # 5. Cards への登録 (CSVにないためスキップ)
+                # ...
+
+                # 6. UserDepartment への登録 (部署との関連付け)
+                if pd.notna(row['department_id']):
+                    user_dept = UserDepartment(
+                        user_id=user_id, # 生成したUUIDを使用
+                        department_id=int(row['department_id'])
                     )
-                    db.session.add(card)
-                
-                # 他のテーブル (User_Statuses, User_Departments など) も
-                # CSVデータ に基づいて登録...
+                    db.session.add(user_dept)
                 
                 db.session.commit()
-                print(f"成功: User {user_id} を登録しました。")
+                print(f"成功: User {user_id} (Name: {row['name']}, Emp#: {emp_num_str}) を登録しました。")
 
             except Exception as e:
                 db.session.rollback()
-                print(f"エラー: User {row.get('給与番号', 'N/A')} の登録に失敗しました。 {e}")
+                # エラー出力に 'employee_number' を使用
+                print(f"エラー: User (Name: {row.get('name', 'N/A')}, Emp#: {row.get('employee_number', 'N/A')}) の登録に失敗しました。 {e}")
         
         print("データインポートが完了しました。")

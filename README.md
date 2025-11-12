@@ -1,5 +1,12 @@
 # staff-db
 
+## データインポート構成
+
+### Usersテーブル
+|d_number|name|employee_number|Birthday|position_id|department_id|hire_date|
+|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+|VARCHAR|VARCHAR|INTEGER|DATE|INTEGER|INTEGER|DATE|
+
 ## DB・テーブル構成
 
 ```mermaid
