@@ -12,22 +12,6 @@ erDiagram
         VARCHAR name "氏名"
         DATE birthday "生年月日"
         DATE hire_date "入職日"
-        VARCHAR personal_extension_number "個人の内線"
-        TIMESTAMP updated_at "最終更新日時"
-    }
-
-    User_Statuses {
-        INTEGER status_id PK "ステータスID (PK)"
-        VARCHAR status_name "ステータス名"
-        TIMESTAMP updated_at "最終更新日時"
-    }
-
-    User_Status_History {
-        INTEGER status_history_id PK "履歴ID (PK)"
-        VARCHAR user_id FK "管理ID (FK)"
-        INTEGER status_id FK "ステータスID (FK)"
-        DATE start_date "開始日"
-        DATE end_date "終了日"
         TIMESTAMP updated_at "最終更新日時"
     }
 
@@ -50,12 +34,11 @@ erDiagram
         TIMESTAMP updated_at "最終更新日時"
     }
 
-    D_Number_History {
+    D_Numbers {
         INTEGER d_number_history_id PK "履歴ID (PK)"
         VARCHAR user_id FK "管理ID (FK)"
         VARCHAR d_number "D番号"
-        DATE start_date "開始日"
-        DATE end_date "終了日"
+        BOOLEAN is_active "有効フラグ"
         TIMESTAMP updated_at "最終更新日時"
     }
 
@@ -81,20 +64,12 @@ erDiagram
     Departments {
         INTEGER department_id PK "部署ID (PK)"
         VARCHAR department_extension_number "部署の内線"
-        DATE create_date "設立日"
-        TIMESTAMP updated_at "最終更新日時"
-    }
-
-    Department_Name_History {
-        INTEGER dept_name_history_id PK "履歴ID (PK)"
-        INTEGER department_id FK "部署ID (FK)"
-        VARCHAR department_name "部署名"
         DATE start_date "開始日"
         DATE end_date "終了日"
         TIMESTAMP updated_at "最終更新日時"
     }
 
-   %% --- 中間テーブル ---
+    %% --- 中間テーブル ---
     User_Departments {
         VARCHAR user_id PK, FK "管理ID (PK, FK)"
         INTEGER department_id PK, FK "部署ID (PK, FK)"
@@ -117,25 +92,22 @@ erDiagram
         INTEGER system_id FK "システムID (FK)"
         VARCHAR table_name "対象テーブル名"
         VARCHAR column_name "対象カラム名"
+        VARCHAR transform_id "変換先ID"
         TIMESTAMP updated_at "最終更新日時"
     }
 
     %% --- 関係性の定義 ---
-    Users ||--o{ User_Status_History : "のステータス履歴"
-    User_Statuses ||--o{ User_Status_History : "が割り当てられる"
+    Users ||--o{ Employee_Number_History : ""
+    Positions ||--o{ Employee_Number_History : ""
 
-    Users ||--o{ Employee_Number_History : "が持つ"
-    Positions ||--o{ Employee_Number_History : "が割り当てられる"
+    Users ||--o{ D_Numbers : ""
+    Users ||--o{ System_IDs : ""
+    Users ||--o{ Cards : ""
 
-    Users ||--o{ D_Number_History : "が持つ"
-    Users ||--o{ System_IDs : "が持つ"
-    Users ||--o{ Cards : "の所持カード"
+    Users ||--o{ User_Departments : ""
+    Departments ||--o{ User_Departments : ""
 
-    Users ||--o{ User_Departments : "の所属"
-    Departments ||--o{ User_Departments : "の所属者"
-    Departments ||--o{ Department_Name_History : "の名称履歴"
-
-    External_Systems ||--o{ External_System_Exports : "の連携設定"
+    External_Systems ||--o{ External_System_Exports : ""
 ```
 
 
