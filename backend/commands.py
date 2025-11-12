@@ -1,9 +1,9 @@
 import click
 import pandas as pd
 from .extensions import db
-# 変更：インポートするモデルを新しい定義に合わせる
-from .models import Positions, User, EmployeeNumberHistory, DNumbers, Cards 
+from .models import Positions, User, EmployeeNumberHistory, DNumbers, Cards, Departments
 import os
+import datetime
 
 # 'app' (Flaskアプリケーションインスタンス) を受け取るようにします
 def register_commands(app):
@@ -60,6 +60,55 @@ def register_commands(app):
 
         except Exception as e:
             db.session.rollback() # エラーが発生したらロールバック
+            print(f"エラーが発生したためロールバックしました: {e}")
+
+    @app.cli.command("import-departments")
+    @click.argument('csv_file')
+    def import_departments(csv_file):
+        """
+        dept_master.csv から Department (部署) マスターデータをインポートします。
+        CSVはヘッダーなし、1列目=ID, 2列目=名前 と想定します。
+        """
+        if not os.path.exists(csv_file):
+            print(f"エラー: ファイルが見つかりません: {csv_file}")
+            return
+
+        print(f"{csv_file} から部署データを読み込んでいます...")
+
+        try:
+            df = pd.read_csv(
+                csv_file,
+                header=None,
+                names=['department_id', 'department_name'],
+                dtype={'department_id': int, 'department_name': str}
+            )
+
+            count = 0
+            for index, row in df.iterrows():
+                dept_id = row['department_id']
+                dept_name = row['department_name']
+
+                existing_dept = Departments.query.get(dept_id)
+
+                if existing_dept:
+                    print(f"スキップ: Department ID {dept_id} ({dept_name}) は既に存在します。")
+                    continue
+
+                new_dept = Departments(
+                    department_id=dept_id,
+                    department_name=dept_name,
+                    start_date=datetime.date.today() # start_date を今日の日付に設定
+                )
+                db.session.add(new_dept)
+                print(f"追加: Department ID {dept_id} ({dept_name})")
+                count += 1
+
+            db.session.commit()
+            print(f"---")
+            print(f"部署データのインポートが完了しました。{count}件の新しいレコードが追加されました。")
+
+        except Exception as e:
+            db.session.rollback()
             print(f"エラーが発生したためロールバックしました: {e}")
 
     @app.cli.command("import-data")

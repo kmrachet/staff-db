@@ -1,6 +1,6 @@
 from .extensions import db
 from sqlalchemy.sql import func
-from sqlalchemy import Column, Integer, String, DATE, TIMESTAMP, BOOLEAN, VARCHAR, ForeignKey, PrimaryKeyConstraint
+from sqlalchemy import Column, Integer, String, DATE, TIMESTAMP, BOOLEAN, VARCHAR, ForeignKey, PrimaryKeyConstraint, text
 from sqlalchemy.orm import relationship
 
 # 共通のタイムスタンプカラム（ミックスイン）
@@ -92,8 +92,13 @@ class Cards(TimestampMixin, db.Model): # Card -> Cards
 class Departments(TimestampMixin, db.Model): # Department -> Departments
     __tablename__ = 'Departments'
     department_id = Column(Integer, primary_key=True, comment="部署ID (PK)")
+    
+    department_name = Column(VARCHAR(255), nullable=True, comment="部署名") 
     department_extension_number = Column(VARCHAR(50), comment="部署の内線")
-    start_date = Column(DATE, comment="開始日") # create_date から変更
+    
+    # ↓ nullable=False と server_default を追加
+    start_date = Column(DATE, nullable=False, server_default=func.now(), comment="開始日") 
+    
     end_date = Column(DATE, nullable=True, comment="終了日") # 新規追加
     
     # リレーションシップ
