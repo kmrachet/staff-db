@@ -23,6 +23,11 @@ def create_app(config_name='default'):
     @app.route("/health")
     def health():
         return jsonify(status="ok"), 200
+    
+    # api/users.py から Blueprint をインポート
+    from .api.users import api_bp
+    # アプリケーションに登録
+    app.register_blueprint(api_bp)
 
     # 5. カスタムCLIコマンドの登録
     # create_app の中でインポートします
