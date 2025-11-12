@@ -5,7 +5,8 @@ from .extensions import db
 from .models import Positions, User, EmployeeNumberHistory, DNumbers, Cards, Departments, UserDepartment
 import os
 import datetime
-import uuid  # UUID モジュールをインポート
+import uuid
+import logging
 
 # 'app' (Flaskアプリケーションインスタンス) を受け取るようにします
 def register_commands(app):
@@ -203,3 +204,99 @@ def register_commands(app):
                 print(f"エラー: User (Name: {row.get('name', 'N/A')}, Emp#: {row.get('employee_number', 'N/A')}) の登録に失敗しました。 {e}")
         
         print("データインポートが完了しました。")
+
+    @app.cli.command("show-users")
+    @click.option('--limit', '-n', default=None, type=int, help='表示する最大レコード数を指定します。')
+    def show_users(limit):
+        """
+        データベースに登録されている全ユーザーの概要情報を表示します。
+        """
+
+        # SQLAlchemyのログをWARNING以上のみ表示に設定
+        # INFOレベルのSQLクエリログが出力されない
+        logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+
+        print("データベースからユーザー情報を読み込んでいます...")
+
+        try:
+            # 1. User クエリを作成 (まだ実行しない)
+            #    入職日でソートしておくと limit が意味を持つ
+            query = User.query.order_by(User.hire_date)
+
+            if limit:
+                # 2. limit オプションが指定されていたら件数を制限
+                print(f"データベースから最大{limit}件のユーザー情報を読み込んでいます...")
+                query = query.limit(limit)
+            else:
+                print("データベースから全ユーザー情報を読み込んでいます...")
+
+            # 3. クエリを実行
+            users = query.all()
+
+            if not users:
+                print("データベースにユーザーが見つかりません。")
+                return
+
+            if limit:
+                print(f"--- {len(users)}件のユーザー情報を表示 (最大{limit}件) ---")
+            else:
+                print(f"--- {len(users)}件のユーザー情報 ---")
+
+            dct = {}
+            i = 0
+            for user in users:
+                dct[i] = {}
+                dct[i]['user_id'] = user.user_id
+                dct[i]['name'] = user.name
+                dct[i]['hire_date'] = user.hire_date
+
+                # 職員番号と職位 (EmployeeNumberHistory から取得)
+                if user.employee_number_history:
+                    history = user.employee_number_history[0]
+                    dct[i]['employee_number'] = history.employee_number
+                    dct[i]['position_id'] = history.position_id
+                    # Position表示 (position リレーションシップが必要)
+                    if history.position:
+                        # PositionテーブルにIDがある場合
+                        dct[i]['position_name'] = history.position.position_name
+                    else:
+                        # PositionテーブルにIDが見つからない場合
+                        dct[i]['position_name'] = None
+                else:
+                    # EmployeeNumberHistory が存在しない場合
+                    dct[i]['employee_number'] = None
+                    dct[i]['position_id'] = None
+                    dct[i]['position_name'] = None
+
+                # D番号 (DNumbers から取得)
+                if user.d_numbers:
+                    # DNumbersテーブルにD番号がある場合
+                    d_num = user.d_numbers[0]
+                    dct[i]['d_number'] = d_num.d_number
+                else:
+                    # D番号がNanの場合
+                    dct[i]['d_number'] = None
+
+                # 所属部署 (UserDepartment 経由で Departments から取得)
+                if user.departments:
+                    dept_assoc = user.departments[0] 
+                    if dept_assoc.department:
+                        # DepartmentテーブルにIDがある場合
+                        dct[i]['department_id'] = dept_assoc.department_id
+                        dct[i]['department_name'] = dept_assoc.department.department_name
+                    else:
+                        # DepartmentテーブルにIDが見つからない場合
+                        dct[i]['department_id'] = dept_assoc.department_id
+                        dct[i]['department_name'] = None
+                else:
+                    # department_idがNanの場合
+                    dct[i]['department_id'] = None
+                    dct[i]['department_name'] = None
+
+                i += 1
+            df = pd.DataFrame.from_dict(dct, orient='index')
+            print(df.head(limit))
+            print("\n--- 表示完了 ---")
+
+        except Exception as e:
+            print(f"データの表示中にエラーが発生しました: {e}")
