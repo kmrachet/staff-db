@@ -12,6 +12,9 @@ services:
       - app_network
 
   backend:
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
     build:
       context: ./backend
       dockerfile: Dockerfile
