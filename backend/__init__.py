@@ -29,6 +29,9 @@ def create_app(config_name='default'):
         # (仮実装)
         return jsonify(users=["Alice", "Bob"]), 200
         
-    # (将来的にAPIが増えたら、ブループリントを使ってファイルを分割します)
+# 5. カスタムCLIコマンドの登録
+    # create_app の中でインポートします
+    from . import commands 
+    commands.register_commands(app)
 
     return app
