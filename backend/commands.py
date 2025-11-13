@@ -300,3 +300,81 @@ def register_commands(app):
 
         except Exception as e:
             print(f"データの表示中にエラーが発生しました: {e}")
+
+    @app.cli.command("import-cards")
+    @click.argument('csv_file')
+    def import_cards(csv_file):
+        """
+        CardsテーブルにCSVからデータをインポートします。
+        CSVは 'user_id', 'card_uid', 'card_management_id' のヘッダーがあることを前提とします。
+        is_active は自動で True に設定されます。
+        """
+        if not os.path.exists(csv_file):
+            print(f"エラー: ファイルが見つかりません: {csv_file}")
+            return
+
+        print(f"{csv_file} からカードデータを読み込んでいます...")
+
+        try:
+            # ヘッダー付き、UTF-8 と想定。キー項目は文字列として読み込む
+            df = pd.read_csv(
+                csv_file, 
+                encoding='utf-8',
+                dtype={
+                    'user_id': str,
+                    'card_uid': str,
+                    'card_management_id': str
+                }
+            )
+
+            count = 0
+            skip_count = 0
+            fk_skip_count = 0
+
+            print(f"{len(df)}件のデータを処理します...")
+
+            for index, row in df.iterrows():
+                card_uid = row['card_uid']
+                user_id = row['user_id']
+                card_management_id = row['card_management_id']
+
+                # card_uid (PK) または user_id (FK) が空の場合はスキップ
+                if not pd.notna(card_uid) or not pd.notna(user_id):
+                    print(f"スキップ: {index+2}行目: card_uid または user_id が空です。")
+                    skip_count += 1
+                    continue
+
+                # 1. 既存チェック (Primary Key: card_uid)
+                existing_card = Cards.query.get(card_uid)
+                if existing_card:
+                    print(f"スキップ: Card UID {card_uid} は既に存在します。")
+                    skip_count += 1
+                    continue
+                
+                # 2. 外部キーチェック (User ID)
+                user = User.query.get(user_id)
+                if not user:
+                    print(f"警告: User ID {user_id} (Card: {card_uid}) が Users テーブルに見つかりません。スキップします。")
+                    fk_skip_count += 1
+                    continue
+
+                # 3. 新規登録 (is_active はモデルのデフォルト 'True' を使用)
+                new_card = Cards(
+                    card_uid=card_uid,
+                    user_id=user_id,
+                    card_management_id=card_management_id
+                )
+                db.session.add(new_card)
+                count += 1
+
+            # ループが正常に完了したらコミット
+            db.session.commit()
+            print(f"---")
+            print(f"カードデータのインポートが完了しました。")
+            print(f"  {count}件の新しいレコードが追加されました。")
+            print(f"  {skip_count}件のレコードが（重複またはデータ欠損のため）スキップされました。")
+            print(f"  {fk_skip_count}件のレコードが（存在しないUser IDのため）スキップされました。")
+
+        except Exception as e:
+            db.session.rollback() # エラーが発生したらロールバック
+            print(f"エラーが発生したためロールバックしました: {e}")

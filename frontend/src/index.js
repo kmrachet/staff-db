@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
-// ▼ 1. カラム定義 (キーと表示名)
+// ▼ 1. カラム定義に追加
 const COLUMNS = {
   user_id: "UUID",
   name: "氏名",
@@ -10,10 +10,11 @@ const COLUMNS = {
   position_id: "職種ID",
   position_name: "職種名称",
   department_id: "部署ID",
-  department_name: "部署名称"
+  department_name: "部署名称",
+  card_uid: "カードUID",             // 追加
+  card_management_id: "カード管理ID" // 追加
 };
 
-// CSVエスケープ関数
 const escapeCSV = (str) => {
   if (str === null || str === undefined) {
     return "";
@@ -25,13 +26,11 @@ const escapeCSV = (str) => {
   return s;
 };
 
-
 function App() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ▼ 2. 選択されたカラムを管理するState (初期値は全てのカラムキー)
   const [selectedColumns, setSelectedColumns] = useState(Object.keys(COLUMNS));
 
   useEffect(() => {
@@ -52,37 +51,31 @@ function App() {
       });
   }, []);
 
-  // ▼ 3. チェックボックス変更ハンドラ
   const handleColumnToggle = (columnKey) => {
     setSelectedColumns(prev =>
       prev.includes(columnKey)
-        ? prev.filter(key => key !== columnKey) // チェックを外す
-        : [...prev, columnKey] // チェックする
+        ? prev.filter(key => key !== columnKey)
+        : [...prev, columnKey]
     );
   };
 
-  // ▼ 4. CSVダウンロードハンドラ
   const handleDownloadCSV = () => {
     if (selectedColumns.length === 0) {
       alert("少なくとも1つのカラムを選択してください。");
       return;
     }
 
-    // ヘッダー行 (選択されたカラムの表示名)
     const headers = selectedColumns.map(key => COLUMNS[key]);
     let csvContent = headers.join(",") + "\n";
 
-    // データ行
     users.forEach(user => {
       const row = selectedColumns.map(key => escapeCSV(user[key]));
       csvContent += row.join(",") + "\n";
     });
 
-    // BOM を追加してExcelでの文字化けを防ぐ
     const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
     const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
     
-    // ダウンロードリンクを作成して実行
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -104,7 +97,6 @@ function App() {
     <div>
       <h1>職員リスト</h1>
 
-      {/* ▼ 5. カラム選択チェックボックス ▼ */}
       <div>
         <h3>CSVダウンロード項目:</h3>
         {Object.entries(COLUMNS).map(([key, label]) => (
@@ -119,12 +111,10 @@ function App() {
         ))}
       </div>
 
-      {/* ▼ 6. ダウンロードボタン ▼ */}
       <button onClick={handleDownloadCSV} style={{ marginTop: '10px' }}>
         選択した項目をCSVダウンロード
       </button>
 
-      {/* ▼ テーブル表示 (選択状態に関わらず全カラム表示) ▼ */}
       <table style={{ marginTop: '20px' }}>
         <thead>
           <tr>
@@ -136,6 +126,9 @@ function App() {
             <th>職種名称</th>
             <th>部署ID</th>
             <th>部署名称</th>
+            {/* ▼ ヘッダー追加 */}
+            <th>カードUID</th>
+            <th>カード管理ID</th>
           </tr>
         </thead>
         <tbody>
@@ -149,6 +142,9 @@ function App() {
               <td>{user.position_name}</td>
               <td>{user.department_id}</td>
               <td>{user.department_name}</td>
+              {/* ▼ データ追加 */}
+              <td>{user.card_uid}</td>
+              <td>{user.card_management_id}</td>
             </tr>
           ))}
         </tbody>
